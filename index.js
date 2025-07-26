@@ -2,12 +2,18 @@
 const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
-require('dotenv').config();
+require('dotenv').config(); // For local development
 
-// Initialize Firebase Admin SDK
+// --- Robust Firebase Admin Initialization ---
+// This code is smarter and works perfectly on Render
+const serviceAccount = process.env.GOOGLE_APPLICATION_CREDENTIALS
+  ? JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS)
+  : require('./' + process.env.LOCAL_FIREBASE_KEY_PATH); // Assumes you have a different variable for local key path
+
 admin.initializeApp({
-  credential: admin.credential.applicationDefault(),
+  credential: admin.credential.cert(serviceAccount)
 });
+// --- End of Initialization ---
 
 const db = admin.firestore();
 const app = express();
@@ -26,7 +32,8 @@ app.get('/api/products', async (req, res) => {
     const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     res.status(200).json(products);
   } catch (error) {
-    res.status(500).json({ error: 'Something went wrong' });
+    console.error("Error fetching products:", error);
+    res.status(500).json({ error: 'Something went wrong fetching products' });
   }
 });
 
@@ -34,10 +41,14 @@ app.get('/api/products', async (req, res) => {
 app.post('/api/products', async (req, res) => {
   try {
     const newProduct = req.body;
+    if (!newProduct.name || !newProduct.price) {
+        return res.status(400).json({ error: 'Missing name or price' });
+    }
     const addedDoc = await db.collection('products').add(newProduct);
     res.status(201).json({ id: addedDoc.id, ...newProduct });
   } catch (error) {
-    res.status(500).json({ error: 'Something went wrong' });
+    console.error("Error adding product:", error);
+    res.status(500).json({ error: 'Something went wrong adding product' });
   }
 });
 
@@ -53,7 +64,7 @@ app.post('/api/orders', async (req, res) => {
       res.status(201).json({ message: 'Order placed successfully!', orderId: addedDoc.id });
     } catch (error) {
       console.error("Error placing order:", error);
-      res.status(500).json({ error: 'Something went wrong' });
+      res.status(500).json({ error: 'Something went wrong placing order' });
     }
 });
 
