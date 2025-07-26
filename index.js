@@ -4,10 +4,15 @@ const cors = require('cors');
 const admin = require('firebase-admin');
 require('dotenv').config();
 
-// Simpler, more direct Firebase initialization
+// --- Base64 Decoding for Firebase Credentials ---
+const encodedCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_BASE64;
+const decodedCredentials = Buffer.from(encodedCredentials, 'base64').toString('ascii');
+const serviceAccount = JSON.parse(decodedCredentials);
+
 admin.initializeApp({
-  credential: admin.credential.applicationDefault(),
+  credential: admin.credential.cert(serviceAccount)
 });
+// --- End of Initialization ---
 
 const db = admin.firestore();
 const app = express();
@@ -17,21 +22,18 @@ app.use(express.json());
 
 const PORT = process.env.PORT || 3001;
 
-// --- API ROUTES ---
+// --- API ROUTES (No changes here) ---
 
-// GET all products
 app.get('/api/products', async (req, res) => {
   try {
     const snapshot = await db.collection('products').get();
-    const products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    res.status(200).json(products);
+    res.status(200).json(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
   } catch (error) {
     console.error("Error fetching products:", error);
-    res.status(500).json({ error: 'Something went wrong' });
+    res.status(500).json({ error: 'Failed to fetch products' });
   }
 });
 
-// POST a new product (for admin)
 app.post('/api/products', async (req, res) => {
   try {
     const newProduct = req.body;
@@ -39,11 +41,10 @@ app.post('/api/products', async (req, res) => {
     res.status(201).json({ id: addedDoc.id, ...newProduct });
   } catch (error) {
     console.error("Error adding product:", error);
-    res.status(500).json({ error: 'Something went wrong' });
+    res.status(500).json({ error: 'Failed to add product' });
   }
 });
 
-// POST a new order
 app.post('/api/orders', async (req, res) => {
     try {
       const newOrder = {
@@ -52,10 +53,10 @@ app.post('/api/orders', async (req, res) => {
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       };
       const addedDoc = await db.collection('orders').add(newOrder);
-      res.status(201).json({ message: 'Order placed successfully!', orderId: addedDoc.id });
+      res.status(201).json({ message: 'Order placed!', orderId: addedDoc.id });
     } catch (error) {
       console.error("Error placing order:", error);
-      res.status(500).json({ error: 'Something went wrong' });
+      res.status(500).json({ error: 'Failed to place order' });
     }
 });
 
