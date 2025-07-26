@@ -2,18 +2,12 @@
 const express = require('express');
 const cors = require('cors');
 const admin = require('firebase-admin');
-require('dotenv').config(); // For local development
+require('dotenv').config();
 
-// --- Robust Firebase Admin Initialization ---
-// This code is smarter and works perfectly on Render
-const serviceAccount = process.env.GOOGLE_APPLICATION_CREDENTIALS
-  ? JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS)
-  : require('./' + process.env.LOCAL_FIREBASE_KEY_PATH); // Assumes you have a different variable for local key path
-
+// Simpler, more direct Firebase initialization
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount)
+  credential: admin.credential.applicationDefault(),
 });
-// --- End of Initialization ---
 
 const db = admin.firestore();
 const app = express();
@@ -33,7 +27,7 @@ app.get('/api/products', async (req, res) => {
     res.status(200).json(products);
   } catch (error) {
     console.error("Error fetching products:", error);
-    res.status(500).json({ error: 'Something went wrong fetching products' });
+    res.status(500).json({ error: 'Something went wrong' });
   }
 });
 
@@ -41,14 +35,11 @@ app.get('/api/products', async (req, res) => {
 app.post('/api/products', async (req, res) => {
   try {
     const newProduct = req.body;
-    if (!newProduct.name || !newProduct.price) {
-        return res.status(400).json({ error: 'Missing name or price' });
-    }
     const addedDoc = await db.collection('products').add(newProduct);
     res.status(201).json({ id: addedDoc.id, ...newProduct });
   } catch (error) {
     console.error("Error adding product:", error);
-    res.status(500).json({ error: 'Something went wrong adding product' });
+    res.status(500).json({ error: 'Something went wrong' });
   }
 });
 
@@ -64,10 +55,9 @@ app.post('/api/orders', async (req, res) => {
       res.status(201).json({ message: 'Order placed successfully!', orderId: addedDoc.id });
     } catch (error) {
       console.error("Error placing order:", error);
-      res.status(500).json({ error: 'Something went wrong placing order' });
+      res.status(500).json({ error: 'Something went wrong' });
     }
 });
-
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
